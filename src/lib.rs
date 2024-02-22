@@ -25,22 +25,22 @@ pub enum RenderMode {
     Solid,
 }
 
-pub struct K3dMesh {
+pub struct K3dMesh<'a> {
     model_matrix: Similarity3<f32>,
-    pub vertices: Vec<nalgebra::Point3<f32>>,
+    pub vertices: &'a [(f32, f32, f32)],
     pub colors: Vec<Rgb565>,
-    pub faces: Vec<(usize, usize, usize)>,
+    pub faces: Option<&'a [(usize, usize, usize)]>,
     pub color: Rgb565,
     pub render_mode: RenderMode,
     pub optimized_lines: Option<Vec<(usize, usize)>>,
 }
 
-impl K3dMesh {
-    pub fn new(vertices: Vec<nalgebra::Point3<f32>>) -> K3dMesh {
+impl<'a> K3dMesh<'a> {
+    pub fn new(vertices: &'a [(f32, f32, f32)]) -> K3dMesh {
         K3dMesh {
             model_matrix: Similarity3::new(Vector3::new(0.0, 0.0, 0.0), nalgebra::zero(), 1.0),
             vertices,
-            faces: Vec::new(),
+            faces: None,
             colors: Vec::new(),
             color: Rgb565::CSS_WHITE,
             render_mode: RenderMode::Points,
@@ -58,18 +58,21 @@ impl K3dMesh {
 
     pub fn optimize_lines(&mut self) {
         let mut lines = Vec::new();
-        for face in &self.faces {
-            for line in &[(face.0, face.1), (face.1, face.2), (face.2, face.0)] {
-                let (a, b) = if line.0 < line.1 {
-                    (line.0, line.1)
-                } else {
-                    (line.1, line.0)
-                };
-                if !lines.contains(&(a, b)) {
-                    lines.push((a, b));
+        if let Some(faces) = self.faces {
+            for face in faces {
+                for line in &[(face.0, face.1), (face.1, face.2), (face.2, face.0)] {
+                    let (a, b) = if line.0 < line.1 {
+                        (line.0, line.1)
+                    } else {
+                        (line.1, line.0)
+                    };
+                    if !lines.contains(&(a, b)) {
+                        lines.push((a, b));
+                    }
                 }
             }
         }
+
         self.optimized_lines = Some(lines);
     }
 
@@ -182,7 +185,7 @@ impl K3dengine {
 
     pub fn render<'a, MS, F>(&self, meshes: MS, mut callback: F)
     where
-        MS: IntoIterator<Item = &'a K3dMesh>,
+        MS: IntoIterator<Item = &'a K3dMesh<'a>>,
         F: FnMut(DrawPrimitive),
     {
         for mesh in meshes {
@@ -195,7 +198,7 @@ impl K3dengine {
                     let screen_space_points = mesh
                         .vertices
                         .iter()
-                        .map(|v| self.transform_point(v, mesh.model_matrix));
+                        .map(|v| self.transform_point(&t2p3(v), mesh.model_matrix));
 
                     if mesh.colors.len() == mesh.vertices.len() {
                         // vertices are colored
@@ -213,20 +216,20 @@ impl K3dengine {
                 RenderMode::Lines => {
                     if let Some(lines) = &mesh.optimized_lines {
                         for line in lines {
-                            let p1 =
-                                self.transform_point(&mesh.vertices[line.0], mesh.model_matrix);
-                            let p2 =
-                                self.transform_point(&mesh.vertices[line.1], mesh.model_matrix);
+                            let p1 = self
+                                .transform_point(&t2p3(&mesh.vertices[line.0]), mesh.model_matrix);
+                            let p2 = self
+                                .transform_point(&t2p3(&mesh.vertices[line.1]), mesh.model_matrix);
                             callback(DrawPrimitive::Line(p1, p2, mesh.color));
                         }
-                    } else {
-                        for face in &mesh.faces {
-                            let p1 =
-                                self.transform_point(&mesh.vertices[face.0], mesh.model_matrix);
-                            let p2 =
-                                self.transform_point(&mesh.vertices[face.1], mesh.model_matrix);
-                            let p3 =
-                                self.transform_point(&mesh.vertices[face.2], mesh.model_matrix);
+                    } else if let Some(faces) = mesh.faces {
+                        for face in faces {
+                            let p1 = self
+                                .transform_point(&t2p3(&mesh.vertices[face.0]), mesh.model_matrix);
+                            let p2 = self
+                                .transform_point(&t2p3(&mesh.vertices[face.1]), mesh.model_matrix);
+                            let p3 = self
+                                .transform_point(&t2p3(&mesh.vertices[face.2]), mesh.model_matrix);
 
                             callback(DrawPrimitive::Line(p1, p2, mesh.color));
                             callback(DrawPrimitive::Line(p2, p3, mesh.color));
@@ -238,4 +241,8 @@ impl K3dengine {
             }
         }
     }
+}
+
+fn t2p3(t: &(f32, f32, f32)) -> Point3<f32> {
+    Point3::new(t.0, t.1, t.2)
 }
