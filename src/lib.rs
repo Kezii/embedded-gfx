@@ -10,6 +10,8 @@ use nalgebra::Similarity3;
 use nalgebra::UnitQuaternion;
 use nalgebra::Vector3;
 
+pub mod framebuffer;
+
 #[derive(Debug)]
 pub enum DrawPrimitive {
     ColoredPoint(Point2<i32>, Rgb565),
@@ -35,7 +37,6 @@ pub struct K3dMesh {
 
 impl K3dMesh {
     pub fn new(vertices: Vec<nalgebra::Point3<f32>>) -> K3dMesh {
-
         K3dMesh {
             model_matrix: Similarity3::new(Vector3::new(0.0, 0.0, 0.0), nalgebra::zero(), 1.0),
             vertices,
