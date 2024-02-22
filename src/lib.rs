@@ -114,7 +114,7 @@ impl K3dCamera {
     pub fn new(aspect_ratio: f32) -> K3dCamera {
         K3dCamera {
             position: Point3::new(0.0, 0.0, 0.0),
-            fov: consts::PI / 4.0,
+            fov: consts::PI / 2.0,
             view_matrix: nalgebra::Matrix4::identity(),
             vp_matrix: nalgebra::Matrix4::identity(),
             aspect_ratio,
@@ -175,8 +175,8 @@ impl K3dengine {
         let point = model_matrix.transform_point(point);
         let point = self.camera.vp_matrix.transform_point(&point);
         Point2::new(
-            self.width as i32 / 2 - ((self.width / 4) as f32 * point.x) as i32,
-            self.height as i32 / 2 - ((self.height / 4) as f32 * point.y) as i32,
+            self.width as i32 / 2 - ((self.width / 2) as f32 * point.x) as i32,
+            self.height as i32 / 2 - ((self.height / 2) as f32 * point.y) as i32,
         )
     }
 
