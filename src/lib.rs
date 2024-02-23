@@ -11,6 +11,7 @@ use nalgebra::UnitQuaternion;
 use nalgebra::Vector3;
 
 pub mod framebuffer;
+pub mod perfcounter;
 
 #[derive(Debug)]
 pub enum DrawPrimitive {
