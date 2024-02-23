@@ -14,6 +14,7 @@ pub struct Geometry<'a> {
     pub faces: &'a [(usize, usize, usize)],
     pub colors: &'a [Rgb565],
     pub lines: &'a [(usize, usize)],
+    pub normals: &'a [(f32, f32, f32)],
 }
 
 impl<'a> Geometry<'a> {
