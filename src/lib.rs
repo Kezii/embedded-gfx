@@ -1,7 +1,8 @@
 use std::f32::consts;
 
 use embedded_graphics_core::pixelcolor::Rgb565;
-use embedded_graphics_core::pixelcolor::WebColors;
+use mesh::K3dMesh;
+use mesh::RenderMode;
 use nalgebra::Isometry3;
 use nalgebra::Perspective3;
 use nalgebra::Point2;
@@ -13,97 +14,12 @@ use nalgebra::Vector3;
 pub mod framebuffer;
 pub mod perfcounter;
 
+pub mod mesh;
+
 #[derive(Debug)]
 pub enum DrawPrimitive {
     ColoredPoint(Point2<i32>, Rgb565),
     Line(Point2<i32>, Point2<i32>, Rgb565),
-}
-
-#[derive(Debug, PartialEq)]
-pub enum RenderMode {
-    Points,
-    Lines,
-    Solid,
-}
-
-pub struct K3dMesh<'a> {
-    model_matrix: Similarity3<f32>,
-    pub vertices: &'a [(f32, f32, f32)],
-    pub colors: Vec<Rgb565>,
-    pub faces: Option<&'a [(usize, usize, usize)]>,
-    pub color: Rgb565,
-    pub render_mode: RenderMode,
-    pub optimized_lines: Option<Vec<(usize, usize)>>,
-}
-
-impl<'a> K3dMesh<'a> {
-    pub fn new(vertices: &'a [(f32, f32, f32)]) -> K3dMesh {
-        K3dMesh {
-            model_matrix: Similarity3::new(Vector3::new(0.0, 0.0, 0.0), nalgebra::zero(), 1.0),
-            vertices,
-            faces: None,
-            colors: Vec::new(),
-            color: Rgb565::CSS_WHITE,
-            render_mode: RenderMode::Points,
-            optimized_lines: None,
-        }
-    }
-
-    pub fn set_color(&mut self, color: Rgb565) {
-        self.color = color;
-    }
-
-    pub fn set_render_mode(&mut self, mode: RenderMode) {
-        self.render_mode = mode;
-    }
-
-    pub fn optimize_lines(&mut self) {
-        let mut lines = Vec::new();
-        if let Some(faces) = self.faces {
-            for face in faces {
-                for line in &[(face.0, face.1), (face.1, face.2), (face.2, face.0)] {
-                    let (a, b) = if line.0 < line.1 {
-                        (line.0, line.1)
-                    } else {
-                        (line.1, line.0)
-                    };
-                    if !lines.contains(&(a, b)) {
-                        lines.push((a, b));
-                    }
-                }
-            }
-        }
-
-        self.optimized_lines = Some(lines);
-    }
-
-    pub fn set_position(&mut self, x: f32, y: f32, z: f32) {
-        self.model_matrix.isometry.translation.x = x;
-        self.model_matrix.isometry.translation.y = y;
-        self.model_matrix.isometry.translation.z = z;
-    }
-
-    pub fn set_attitude(&mut self, roll: f32, pitch: f32, yaw: f32) {
-        self.model_matrix.isometry.rotation = UnitQuaternion::from_euler_angles(roll, pitch, yaw);
-    }
-
-    pub fn set_target(&mut self, target: Point3<f32>) {
-        let view = Similarity3::look_at_rh(
-            &self.model_matrix.isometry.translation.vector.into(),
-            &target,
-            &Vector3::y(),
-            1.0,
-        );
-
-        self.model_matrix = view;
-    }
-
-    pub fn set_scale(&mut self, s: f32) {
-        if s == 0.0 {
-            return;
-        }
-        self.model_matrix.set_scaling(s)
-    }
 }
 
 pub struct K3dCamera {
@@ -190,20 +106,21 @@ impl K3dengine {
         F: FnMut(DrawPrimitive),
     {
         for mesh in meshes {
-            if mesh.vertices.is_empty() {
+            if mesh.geometry.vertices.is_empty() {
                 continue;
             }
 
             match mesh.render_mode {
                 RenderMode::Points => {
                     let screen_space_points = mesh
+                        .geometry
                         .vertices
                         .iter()
                         .map(|v| self.transform_point(&t2p3(v), mesh.model_matrix));
 
-                    if mesh.colors.len() == mesh.vertices.len() {
+                    if mesh.geometry.colors.len() == mesh.geometry.vertices.len() {
                         // vertices are colored
-                        for (point, color) in screen_space_points.zip(&mesh.colors) {
+                        for (point, color) in screen_space_points.zip(mesh.geometry.colors) {
                             callback(DrawPrimitive::ColoredPoint(point, *color));
                         }
                         continue;
@@ -215,22 +132,32 @@ impl K3dengine {
                     }
                 }
                 RenderMode::Lines => {
-                    if let Some(lines) = &mesh.optimized_lines {
-                        for line in lines {
-                            let p1 = self
-                                .transform_point(&t2p3(&mesh.vertices[line.0]), mesh.model_matrix);
-                            let p2 = self
-                                .transform_point(&t2p3(&mesh.vertices[line.1]), mesh.model_matrix);
+                    if !mesh.geometry.lines.is_empty() {
+                        for line in mesh.geometry.lines {
+                            let p1 = self.transform_point(
+                                &t2p3(&mesh.geometry.vertices[line.0]),
+                                mesh.model_matrix,
+                            );
+                            let p2 = self.transform_point(
+                                &t2p3(&mesh.geometry.vertices[line.1]),
+                                mesh.model_matrix,
+                            );
                             callback(DrawPrimitive::Line(p1, p2, mesh.color));
                         }
-                    } else if let Some(faces) = mesh.faces {
-                        for face in faces {
-                            let p1 = self
-                                .transform_point(&t2p3(&mesh.vertices[face.0]), mesh.model_matrix);
-                            let p2 = self
-                                .transform_point(&t2p3(&mesh.vertices[face.1]), mesh.model_matrix);
-                            let p3 = self
-                                .transform_point(&t2p3(&mesh.vertices[face.2]), mesh.model_matrix);
+                    } else if !mesh.geometry.faces.is_empty() {
+                        for face in mesh.geometry.faces {
+                            let p1 = self.transform_point(
+                                &t2p3(&mesh.geometry.vertices[face.0]),
+                                mesh.model_matrix,
+                            );
+                            let p2 = self.transform_point(
+                                &t2p3(&mesh.geometry.vertices[face.1]),
+                                mesh.model_matrix,
+                            );
+                            let p3 = self.transform_point(
+                                &t2p3(&mesh.geometry.vertices[face.2]),
+                                mesh.model_matrix,
+                            );
 
                             callback(DrawPrimitive::Line(p1, p2, mesh.color));
                             callback(DrawPrimitive::Line(p2, p3, mesh.color));
