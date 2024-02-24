@@ -37,11 +37,6 @@ impl<const W: usize, const H: usize, const BIG_ENDIAN: bool> DmaReadyFramebuffer
         }
     }
 
-    pub fn zero(&mut self) -> Result<(), core::convert::Infallible> {
-        self.as_mut_slice().fill(0);
-        Ok(())
-    }
-
     pub fn as_slice(&self) -> &[u16] {
         unsafe { core::slice::from_raw_parts(self.framebuffer as *const u16, W * H) }
     }

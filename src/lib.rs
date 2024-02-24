@@ -91,8 +91,13 @@ impl K3dengine {
         }
     }
 
-    fn transform_point(&self, point: &Point3<f32>, model_matrix: Similarity3<f32>) -> Point2<i32> {
-        let point = model_matrix.transform_point(point);
+    fn transform_point(
+        &self,
+        point: &(f32, f32, f32),
+        model_matrix: Similarity3<f32>,
+    ) -> Point2<i32> {
+        let point = Point3::new(point.0, point.1, point.2);
+        let point = model_matrix.transform_point(&point);
         let point = self.camera.vp_matrix.transform_point(&point);
         Point2::new(
             self.width as i32 / 2 - ((self.width / 2) as f32 * point.x) as i32,
@@ -109,68 +114,56 @@ impl K3dengine {
             if mesh.geometry.vertices.is_empty() {
                 continue;
             }
+            let screen_space_points = mesh
+                .geometry
+                .vertices
+                .iter()
+                .map(|v| self.transform_point(v, mesh.model_matrix));
 
             match mesh.render_mode {
-                RenderMode::Points => {
-                    let screen_space_points = mesh
-                        .geometry
-                        .vertices
-                        .iter()
-                        .map(|v| self.transform_point(&t2p3(v), mesh.model_matrix));
-
-                    if mesh.geometry.colors.len() == mesh.geometry.vertices.len() {
-                        // vertices are colored
-                        for (point, color) in screen_space_points.zip(mesh.geometry.colors) {
-                            callback(DrawPrimitive::ColoredPoint(point, *color));
-                        }
-                        continue;
+                RenderMode::Points
+                    if mesh.geometry.colors.len() == mesh.geometry.vertices.len() =>
+                {
+                    for (point, color) in screen_space_points.zip(mesh.geometry.colors) {
+                        callback(DrawPrimitive::ColoredPoint(point, *color));
                     }
+                }
 
-                    // global mesh color
+                RenderMode::Points => {
                     for point in screen_space_points {
                         callback(DrawPrimitive::ColoredPoint(point, mesh.color));
                     }
                 }
-                RenderMode::Lines => {
-                    if !mesh.geometry.lines.is_empty() {
-                        for line in mesh.geometry.lines {
-                            let p1 = self.transform_point(
-                                &t2p3(&mesh.geometry.vertices[line.0]),
-                                mesh.model_matrix,
-                            );
-                            let p2 = self.transform_point(
-                                &t2p3(&mesh.geometry.vertices[line.1]),
-                                mesh.model_matrix,
-                            );
-                            callback(DrawPrimitive::Line(p1, p2, mesh.color));
-                        }
-                    } else if !mesh.geometry.faces.is_empty() {
-                        for face in mesh.geometry.faces {
-                            let p1 = self.transform_point(
-                                &t2p3(&mesh.geometry.vertices[face.0]),
-                                mesh.model_matrix,
-                            );
-                            let p2 = self.transform_point(
-                                &t2p3(&mesh.geometry.vertices[face.1]),
-                                mesh.model_matrix,
-                            );
-                            let p3 = self.transform_point(
-                                &t2p3(&mesh.geometry.vertices[face.2]),
-                                mesh.model_matrix,
-                            );
 
-                            callback(DrawPrimitive::Line(p1, p2, mesh.color));
-                            callback(DrawPrimitive::Line(p2, p3, mesh.color));
-                            callback(DrawPrimitive::Line(p3, p1, mesh.color));
-                        }
+                RenderMode::Lines if !mesh.geometry.lines.is_empty() => {
+                    for line in mesh.geometry.lines {
+                        let p1 = self
+                            .transform_point(&mesh.geometry.vertices[line.0], mesh.model_matrix);
+                        let p2 = self
+                            .transform_point(&mesh.geometry.vertices[line.1], mesh.model_matrix);
+                        callback(DrawPrimitive::Line(p1, p2, mesh.color));
                     }
                 }
+
+                RenderMode::Lines if !mesh.geometry.faces.is_empty() => {
+                    for face in mesh.geometry.faces {
+                        let p1 = self
+                            .transform_point(&mesh.geometry.vertices[face.0], mesh.model_matrix);
+                        let p2 = self
+                            .transform_point(&mesh.geometry.vertices[face.1], mesh.model_matrix);
+                        let p3 = self
+                            .transform_point(&mesh.geometry.vertices[face.2], mesh.model_matrix);
+
+                        callback(DrawPrimitive::Line(p1, p2, mesh.color));
+                        callback(DrawPrimitive::Line(p2, p3, mesh.color));
+                        callback(DrawPrimitive::Line(p3, p1, mesh.color));
+                    }
+                }
+
+                RenderMode::Lines => {}
+
                 RenderMode::Solid => todo!(),
             }
         }
     }
-}
-
-fn t2p3(t: &(f32, f32, f32)) -> Point3<f32> {
-    Point3::new(t.0, t.1, t.2)
 }
