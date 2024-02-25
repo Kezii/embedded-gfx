@@ -1,6 +1,7 @@
 use std::f32::consts;
 
 use embedded_graphics_core::pixelcolor::Rgb565;
+use embedded_graphics_core::pixelcolor::RgbColor;
 use mesh::K3dMesh;
 use mesh::RenderMode;
 use nalgebra::Isometry3;
@@ -11,21 +12,24 @@ use nalgebra::Similarity3;
 use nalgebra::UnitQuaternion;
 use nalgebra::Vector3;
 
+pub mod draw;
 pub mod framebuffer;
-pub mod perfcounter;
-
 pub mod mesh;
+pub mod perfcounter;
 
 #[derive(Debug)]
 pub enum DrawPrimitive {
     ColoredPoint(Point2<i32>, Rgb565),
     Line(Point2<i32>, Point2<i32>, Rgb565),
+    ColoredTriangle(Point2<i32>, Point2<i32>, Point2<i32>, Rgb565),
 }
 
 pub struct K3dCamera {
     pub position: Point3<f32>,
     fov: f32,
-    view_matrix: nalgebra::Matrix4<f32>,
+    near: f32,
+    far: f32,
+    pub view_matrix: nalgebra::Matrix4<f32>,
     vp_matrix: nalgebra::Matrix4<f32>,
     aspect_ratio: f32,
 }
@@ -38,6 +42,8 @@ impl K3dCamera {
             view_matrix: nalgebra::Matrix4::identity(),
             vp_matrix: nalgebra::Matrix4::identity(),
             aspect_ratio,
+            near: 0.4,
+            far: 10.0,
         }
     }
 
@@ -61,6 +67,18 @@ impl K3dCamera {
         self.update_vp();
     }
 
+    pub fn get_direction(&self) -> Vector3<f32> {
+        // Vector3::new(
+        //     self.view_matrix[(0, 2)],
+        //     self.view_matrix[(1, 2)],
+        //     self.view_matrix[(2, 2)],
+        // )
+
+        let transpose = self.view_matrix; //.transpose();
+
+        Vector3::new(transpose[(2, 0)], transpose[(2, 1)], transpose[(2, 2)])
+    }
+
     pub fn set_attitude(&mut self, roll: f32, pitch: f32, yaw: f32) {
         let rotation = UnitQuaternion::from_euler_angles(roll, pitch, yaw);
         let translation = self.position;
@@ -70,7 +88,7 @@ impl K3dCamera {
     }
 
     pub fn update_vp(&mut self) {
-        let projection = Perspective3::new(self.aspect_ratio, self.fov, 1.0, 10.0);
+        let projection = Perspective3::new(self.aspect_ratio, self.fov, self.near, self.far);
         let view_projection = projection.as_matrix() * self.view_matrix;
         self.vp_matrix = view_projection;
     }
@@ -95,14 +113,20 @@ impl K3dengine {
         &self,
         point: &(f32, f32, f32),
         model_matrix: Similarity3<f32>,
-    ) -> Point2<i32> {
+    ) -> Option<Point3<i32>> {
         let point = Point3::new(point.0, point.1, point.2);
         let point = model_matrix.transform_point(&point);
         let point = self.camera.vp_matrix.transform_point(&point);
-        Point2::new(
+
+        if point.z < self.camera.near || point.z > self.camera.far {
+            return None;
+        }
+
+        Some(Point3::new(
             self.width as i32 / 2 - ((self.width / 2) as f32 * point.x) as i32,
             self.height as i32 / 2 - ((self.height / 2) as f32 * point.y) as i32,
-        )
+            (point.z * (self.camera.far - self.camera.near) + self.camera.near) as i32,
+        ))
     }
 
     pub fn render<'a, MS, F>(&self, meshes: MS, mut callback: F)
@@ -118,20 +142,20 @@ impl K3dengine {
                 .geometry
                 .vertices
                 .iter()
-                .map(|v| self.transform_point(v, mesh.model_matrix));
+                .filter_map(|v| self.transform_point(v, mesh.model_matrix));
 
             match mesh.render_mode {
                 RenderMode::Points
                     if mesh.geometry.colors.len() == mesh.geometry.vertices.len() =>
                 {
                     for (point, color) in screen_space_points.zip(mesh.geometry.colors) {
-                        callback(DrawPrimitive::ColoredPoint(point, *color));
+                        callback(DrawPrimitive::ColoredPoint(point.xy(), *color));
                     }
                 }
 
                 RenderMode::Points => {
                     for point in screen_space_points {
-                        callback(DrawPrimitive::ColoredPoint(point, mesh.color));
+                        callback(DrawPrimitive::ColoredPoint(point.xy(), mesh.color));
                     }
                 }
 
@@ -141,7 +165,10 @@ impl K3dengine {
                             .transform_point(&mesh.geometry.vertices[line.0], mesh.model_matrix);
                         let p2 = self
                             .transform_point(&mesh.geometry.vertices[line.1], mesh.model_matrix);
-                        callback(DrawPrimitive::Line(p1, p2, mesh.color));
+
+                        if let (Some(p1), Some(p2)) = (p1, p2) {
+                            callback(DrawPrimitive::Line(p1.xy(), p2.xy(), mesh.color));
+                        }
                     }
                 }
 
@@ -154,15 +181,131 @@ impl K3dengine {
                         let p3 = self
                             .transform_point(&mesh.geometry.vertices[face.2], mesh.model_matrix);
 
-                        callback(DrawPrimitive::Line(p1, p2, mesh.color));
-                        callback(DrawPrimitive::Line(p2, p3, mesh.color));
-                        callback(DrawPrimitive::Line(p3, p1, mesh.color));
+                        if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
+                            callback(DrawPrimitive::Line(p1.xy(), p2.xy(), mesh.color));
+                            callback(DrawPrimitive::Line(p2.xy(), p3.xy(), mesh.color));
+                            callback(DrawPrimitive::Line(p3.xy(), p1.xy(), mesh.color));
+                        }
                     }
                 }
 
                 RenderMode::Lines => {}
 
-                RenderMode::Solid => todo!(),
+                RenderMode::SolidLightDir(direction) => {
+                    for (face, normal) in mesh.geometry.faces.iter().zip(mesh.geometry.normals) {
+                        //Backface culling
+                        let normal = Vector3::new(normal.0, normal.1, normal.2);
+
+                        let transformed_normal = mesh.model_matrix.transform_vector(&normal);
+
+                        if self.camera.get_direction().dot(&transformed_normal) < 0.0 {
+                            continue;
+                        }
+
+                        let p1 = self
+                            .transform_point(&mesh.geometry.vertices[face.0], mesh.model_matrix);
+                        let p2 = self
+                            .transform_point(&mesh.geometry.vertices[face.1], mesh.model_matrix);
+                        let p3 = self
+                            .transform_point(&mesh.geometry.vertices[face.2], mesh.model_matrix);
+
+                        if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
+                            let color_as_float = Vector3::new(
+                                mesh.color.r() as f32 / 32.0,
+                                mesh.color.g() as f32 / 64.0,
+                                mesh.color.b() as f32 / 32.0,
+                            );
+
+                            let mut final_color = Vector3::new(0.0f32, 0.0, 0.0);
+
+                            let intensity = transformed_normal.dot(&direction);
+
+                            let intensity = intensity.max(0.0);
+
+                            final_color += color_as_float * intensity + color_as_float * 0.4;
+
+                            let final_color = Vector3::new(
+                                final_color.x.min(1.0).max(0.0),
+                                final_color.y.min(1.0).max(0.0),
+                                final_color.z.min(1.0).max(0.0),
+                            );
+
+                            let color = Rgb565::new(
+                                (final_color.x * 31.0) as u8,
+                                (final_color.y * 63.0) as u8,
+                                (final_color.z * 31.0) as u8,
+                            );
+                            callback(DrawPrimitive::ColoredTriangle(
+                                p1.xy(),
+                                p2.xy(),
+                                p3.xy(),
+                                color,
+                            ));
+                        }
+                    }
+                }
+
+                RenderMode::Solid => {
+                    if mesh.geometry.normals.is_empty() {
+                        for face in mesh.geometry.faces.iter() {
+                            let p1 = self.transform_point(
+                                &mesh.geometry.vertices[face.0],
+                                mesh.model_matrix,
+                            );
+                            let p2 = self.transform_point(
+                                &mesh.geometry.vertices[face.1],
+                                mesh.model_matrix,
+                            );
+                            let p3 = self.transform_point(
+                                &mesh.geometry.vertices[face.2],
+                                mesh.model_matrix,
+                            );
+
+                            if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
+                                callback(DrawPrimitive::ColoredTriangle(
+                                    p1.xy(),
+                                    p2.xy(),
+                                    p3.xy(),
+                                    mesh.color,
+                                ));
+                            }
+                        }
+                    } else {
+                        for (face, normal) in mesh.geometry.faces.iter().zip(mesh.geometry.normals)
+                        {
+                            //Backface culling
+                            let normal = Vector3::new(normal.0, normal.1, normal.2);
+
+                            let transformed_normal = mesh.model_matrix.transform_vector(&normal);
+
+                            if self.camera.get_direction().dot(&transformed_normal) < 0.0 {
+                                continue;
+                            }
+
+                            let p1 = self.transform_point(
+                                &mesh.geometry.vertices[face.0],
+                                mesh.model_matrix,
+                            );
+                            let p2 = self.transform_point(
+                                &mesh.geometry.vertices[face.1],
+                                mesh.model_matrix,
+                            );
+                            let p3 = self.transform_point(
+                                &mesh.geometry.vertices[face.2],
+                                mesh.model_matrix,
+                            );
+
+                            if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
+                                callback(DrawPrimitive::ColoredTriangle(
+                                    p1.xy(),
+                                    p2.xy(),
+                                    p3.xy(),
+                                    mesh.color,
+                                ));
+                            }
+                        }
+                    }
+                }
             }
         }
     }

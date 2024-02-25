@@ -7,6 +7,7 @@ pub enum RenderMode {
     Points,
     Lines,
     Solid,
+    SolidLightDir(Vector3<f32>),
 }
 #[derive(Debug, Default)]
 pub struct Geometry<'a> {
@@ -98,6 +99,10 @@ impl<'a> K3dMesh<'a> {
         self.model_matrix.isometry.translation.x = x;
         self.model_matrix.isometry.translation.y = y;
         self.model_matrix.isometry.translation.z = z;
+    }
+
+    pub fn get_position(&self) -> Point3<f32> {
+        self.model_matrix.isometry.translation.vector.into()
     }
 
     pub fn set_attitude(&mut self, roll: f32, pitch: f32, yaw: f32) {
