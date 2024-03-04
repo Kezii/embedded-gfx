@@ -70,7 +70,9 @@ impl<'a> Geometry<'a> {
 }
 
 pub struct K3dMesh<'a> {
-    pub model_matrix: Similarity3<f32>,
+    pub similarity: Similarity3<f32>,
+    pub model_matrix: nalgebra::Matrix4<f32>,
+
     pub color: Rgb565,
     pub render_mode: RenderMode,
     pub geometry: Geometry<'a>,
@@ -79,8 +81,10 @@ pub struct K3dMesh<'a> {
 impl<'a> K3dMesh<'a> {
     pub fn new(geometry: Geometry) -> K3dMesh {
         assert!(geometry.check_validity());
+        let sim = Similarity3::new(Vector3::new(0.0, 0.0, 0.0), nalgebra::zero(), 1.0);
         K3dMesh {
-            model_matrix: Similarity3::new(Vector3::new(0.0, 0.0, 0.0), nalgebra::zero(), 1.0),
+            model_matrix: sim.to_homogeneous(),
+            similarity: sim,
             color: Rgb565::CSS_WHITE,
             render_mode: RenderMode::Points,
             geometry,
@@ -96,34 +100,42 @@ impl<'a> K3dMesh<'a> {
     }
 
     pub fn set_position(&mut self, x: f32, y: f32, z: f32) {
-        self.model_matrix.isometry.translation.x = x;
-        self.model_matrix.isometry.translation.y = y;
-        self.model_matrix.isometry.translation.z = z;
+        self.similarity.isometry.translation.x = x;
+        self.similarity.isometry.translation.y = y;
+        self.similarity.isometry.translation.z = z;
+        self.update_model_matrix();
     }
 
     pub fn get_position(&self) -> Point3<f32> {
-        self.model_matrix.isometry.translation.vector.into()
+        self.similarity.isometry.translation.vector.into()
     }
 
     pub fn set_attitude(&mut self, roll: f32, pitch: f32, yaw: f32) {
-        self.model_matrix.isometry.rotation = UnitQuaternion::from_euler_angles(roll, pitch, yaw);
+        self.similarity.isometry.rotation = UnitQuaternion::from_euler_angles(roll, pitch, yaw);
+        self.update_model_matrix();
     }
 
     pub fn set_target(&mut self, target: Point3<f32>) {
         let view = Similarity3::look_at_rh(
-            &self.model_matrix.isometry.translation.vector.into(),
+            &self.similarity.isometry.translation.vector.into(),
             &target,
             &Vector3::y(),
             1.0,
         );
 
-        self.model_matrix = view;
+        self.similarity = view;
+        self.update_model_matrix();
     }
 
     pub fn set_scale(&mut self, s: f32) {
         if s == 0.0 {
             return;
         }
-        self.model_matrix.set_scaling(s)
+        self.similarity.set_scaling(s);
+        self.update_model_matrix();
+    }
+
+    fn update_model_matrix(&mut self) {
+        self.model_matrix = self.similarity.to_homogeneous();
     }
 }
