@@ -22,6 +22,10 @@ impl PerformanceCounter {
         self.only_fps = only_fps;
     }
 
+    pub fn get_frametime(&self) -> u64 {
+        (std::time::Instant::now() - self.start_of_frame).as_micros() as u64
+    }
+
     pub fn start_of_frame(&mut self) {
         self.start_of_frame = std::time::Instant::now();
         self.old_point = self.start_of_frame;
