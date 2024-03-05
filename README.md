@@ -1,4 +1,5 @@
 # Embedded-gfx
+<a href="https://crates.io/crates/embedded-gfx"><img alt="crates.io" src="https://img.shields.io/crates/v/embedded-gfx"></a>
 
 This is an opengl-like library to draw 3D graphics in an embedded system, built around embedded-graphics.
 
