@@ -1,0 +1,22 @@
+# Embedded-gfx
+
+This is an opengl-like library to draw 3D graphics in an embedded system, built around embedded-graphics.
+
+## Features
+
+- [x] full mvp pipeline with perspective projection
+- [x] point cloud rendering
+- [x] wireframe rendering
+- [x] solid color triangle rendering
+- [x] simple per-triangle lighting
+- [x] mesh transformation
+- [x] mesh loading from stl files
+
+
+## Example
+
+You can find a working example in the *Rust on M5Stack Cardputer* project
+
+https://github.com/Kezii/Rust-M5Stack-Cardputer
+
+https://github.com/Kezii/Rust-M5Stack-Cardputer/assets/3357750/658bd303-03c5-4dc2-9c49-75a98b667719
