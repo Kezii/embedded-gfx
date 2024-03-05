@@ -13,6 +13,11 @@ This is an opengl-like library to draw 3D graphics in an embedded system, built 
 - [x] mesh transformation
 - [x] mesh loading from stl files
 
+## Todo
+- [ ] z-buffer
+- [ ] per-fragment interpolation
+- [ ] proper pipeline for vertex / fragment shading
+- [ ] texture mapping ?
 
 ## Example
 
