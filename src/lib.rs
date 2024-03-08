@@ -1,16 +1,14 @@
-use std::f32::consts;
-
+use camera::Camera;
 use embedded_graphics_core::pixelcolor::Rgb565;
 use embedded_graphics_core::pixelcolor::RgbColor;
 use mesh::K3dMesh;
 use mesh::RenderMode;
-use nalgebra::Isometry3;
 use nalgebra::Matrix4;
-use nalgebra::Perspective3;
 use nalgebra::Point2;
 use nalgebra::Point3;
 use nalgebra::Vector3;
 
+pub mod camera;
 pub mod draw;
 pub mod framebuffer;
 pub mod mesh;
@@ -23,89 +21,8 @@ pub enum DrawPrimitive {
     ColoredTriangle(Point2<i32>, Point2<i32>, Point2<i32>, Rgb565),
 }
 
-pub struct K3dCamera {
-    pub position: Point3<f32>,
-    fov: f32,
-    near: f32,
-    far: f32,
-    pub view_matrix: nalgebra::Matrix4<f32>,
-    projection_matrix: nalgebra::Matrix4<f32>,
-    vp_matrix: nalgebra::Matrix4<f32>,
-    target: Point3<f32>,
-    aspect_ratio: f32,
-}
-
-impl K3dCamera {
-    pub fn new(aspect_ratio: f32) -> K3dCamera {
-        let mut ret = K3dCamera {
-            position: Point3::new(0.0, 0.0, 0.0),
-            fov: consts::PI / 2.0,
-            view_matrix: nalgebra::Matrix4::identity(),
-            projection_matrix: nalgebra::Matrix4::identity(),
-            vp_matrix: nalgebra::Matrix4::identity(),
-            target: Point3::new(0.0, 0.0, 0.0),
-            aspect_ratio,
-            near: 0.4,
-            far: 20.0,
-        };
-
-        ret.update_projection();
-
-        ret
-    }
-
-    pub fn set_position(&mut self, pos: Point3<f32>) {
-        self.position = pos;
-
-        self.update_view();
-    }
-
-    pub fn set_fovy(&mut self, fovy: f32) {
-        self.fov = fovy;
-
-        self.update_projection();
-    }
-
-    pub fn set_target(&mut self, target: Point3<f32>) {
-        self.target = target;
-        self.update_view();
-    }
-
-    pub fn get_direction(&self) -> Vector3<f32> {
-        // Vector3::new(
-        //     self.view_matrix[(0, 2)],
-        //     self.view_matrix[(1, 2)],
-        //     self.view_matrix[(2, 2)],
-        // )
-
-        let transpose = self.view_matrix; //.transpose();
-
-        Vector3::new(transpose[(2, 0)], transpose[(2, 1)], transpose[(2, 2)])
-    }
-
-    // pub fn set_attitude(&mut self, roll: f32, pitch: f32, yaw: f32) {
-    //     let rotation = UnitQuaternion::from_euler_angles(roll, pitch, yaw);
-    //     let translation = self.position;
-    //     let isometry = Isometry3::from_parts(translation.coords.into(), rotation);
-    //     self.view_matrix = isometry.to_homogeneous();
-    // }
-
-    fn update_view(&mut self) {
-        let view = Isometry3::look_at_rh(&self.position, &self.target, &Vector3::y());
-
-        self.view_matrix = view.to_homogeneous();
-        self.vp_matrix = self.projection_matrix * self.view_matrix;
-    }
-
-    fn update_projection(&mut self) {
-        let projection = Perspective3::new(self.aspect_ratio, self.fov, self.near, self.far);
-        self.projection_matrix = projection.to_homogeneous();
-        self.vp_matrix = self.projection_matrix * self.view_matrix;
-    }
-}
-
 pub struct K3dengine {
-    pub camera: K3dCamera,
+    pub camera: Camera,
     width: u16,
     height: u16,
 }
@@ -113,7 +30,7 @@ pub struct K3dengine {
 impl K3dengine {
     pub fn new(width: u16, height: u16) -> K3dengine {
         K3dengine {
-            camera: K3dCamera::new(width as f32 / height as f32),
+            camera: Camera::new(width as f32 / height as f32),
             width,
             height,
         }
