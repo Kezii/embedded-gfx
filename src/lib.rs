@@ -17,8 +17,8 @@ pub mod perfcounter;
 #[derive(Debug)]
 pub enum DrawPrimitive {
     ColoredPoint(Point2<i32>, Rgb565),
-    Line(Point2<i32>, Point2<i32>, Rgb565),
-    ColoredTriangle(Point2<i32>, Point2<i32>, Point2<i32>, Rgb565),
+    Line([Point2<i32>; 2], Rgb565),
+    ColoredTriangle([Point2<i32>; 3], Rgb565),
 }
 
 pub struct K3dengine {
@@ -96,7 +96,7 @@ impl K3dengine {
                             .transform_point(&mesh.geometry.vertices[line[1]], transform_matrix);
 
                         if let (Some(p1), Some(p2)) = (p1, p2) {
-                            callback(DrawPrimitive::Line(p1.xy(), p2.xy(), mesh.color));
+                            callback(DrawPrimitive::Line([p1.xy(), p2.xy()], mesh.color));
                         }
                     }
                 }
@@ -111,9 +111,9 @@ impl K3dengine {
                             .transform_point(&mesh.geometry.vertices[face[2]], transform_matrix);
 
                         if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
-                            callback(DrawPrimitive::Line(p1.xy(), p2.xy(), mesh.color));
-                            callback(DrawPrimitive::Line(p2.xy(), p3.xy(), mesh.color));
-                            callback(DrawPrimitive::Line(p3.xy(), p1.xy(), mesh.color));
+                            callback(DrawPrimitive::Line([p1.xy(), p2.xy()], mesh.color));
+                            callback(DrawPrimitive::Line([p2.xy(), p3.xy()], mesh.color));
+                            callback(DrawPrimitive::Line([p3.xy(), p1.xy()], mesh.color));
                         }
                     }
                 }
@@ -165,9 +165,7 @@ impl K3dengine {
                                 (final_color.z * 31.0) as u8,
                             );
                             callback(DrawPrimitive::ColoredTriangle(
-                                p1.xy(),
-                                p2.xy(),
-                                p3.xy(),
+                                [p1.xy(), p2.xy(), p3.xy()],
                                 color,
                             ));
                         }
@@ -192,9 +190,7 @@ impl K3dengine {
 
                             if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
                                 callback(DrawPrimitive::ColoredTriangle(
-                                    p1.xy(),
-                                    p2.xy(),
-                                    p3.xy(),
+                                    [p1.xy(), p2.xy(), p3.xy()],
                                     mesh.color,
                                 ));
                             }
@@ -226,9 +222,7 @@ impl K3dengine {
 
                             if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
                                 callback(DrawPrimitive::ColoredTriangle(
-                                    p1.xy(),
-                                    p2.xy(),
-                                    p3.xy(),
+                                    [p1.xy(), p2.xy(), p3.xy()],
                                     mesh.color,
                                 ));
                             }

@@ -11,7 +11,7 @@ pub fn draw<D: DrawTarget<Color = embedded_graphics_core::pixelcolor::Rgb565>>(
     <D as DrawTarget>::Error: std::fmt::Debug,
 {
     match primitive {
-        DrawPrimitive::Line(p1, p2, color) => {
+        DrawPrimitive::Line([p1, p2], color) => {
             fb.draw_iter(
                 line_drawing::Bresenham::new((p1.x, p1.y), (p2.x, p2.y))
                     .map(|(x, y)| embedded_graphics_core::Pixel(Point::new(x, y), color)),
@@ -23,9 +23,8 @@ pub fn draw<D: DrawTarget<Color = embedded_graphics_core::pixelcolor::Rgb565>>(
 
             fb.draw_iter([embedded_graphics_core::Pixel(p, c)]).unwrap();
         }
-        DrawPrimitive::ColoredTriangle(p1, p2, p3, color) => {
+        DrawPrimitive::ColoredTriangle(mut vertices, color) => {
             //sort vertices by y
-            let mut vertices = [p1, p2, p3];
             vertices.sort_by(|a, b| a.y.cmp(&b.y));
 
             let [p1, p2, p3] = vertices
