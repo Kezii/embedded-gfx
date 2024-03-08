@@ -56,6 +56,21 @@ impl K3dengine {
         ))
     }
 
+    fn transform_points<const N: usize>(
+        &self,
+        indices: &[usize; N],
+        vertices: &[[f32; 3]],
+        model_matrix: Matrix4<f32>,
+    ) -> Option<[Point3<i32>; N]> {
+        let mut ret = [Point3::new(0, 0, 0); N];
+
+        for i in 0..N {
+            ret[i] = self.transform_point(&vertices[indices[i]], model_matrix)?;
+        }
+
+        Some(ret)
+    }
+
     pub fn render<'a, MS, F>(&self, meshes: MS, mut callback: F)
     where
         MS: IntoIterator<Item = &'a K3dMesh<'a>>,
@@ -67,35 +82,31 @@ impl K3dengine {
             }
 
             let transform_matrix = self.camera.vp_matrix * mesh.model_matrix;
-            let screen_space_points = mesh
-                .geometry
-                .vertices
-                .iter()
-                .filter_map(|v| self.transform_point(v, transform_matrix));
 
             match mesh.render_mode {
-                RenderMode::Points
-                    if mesh.geometry.colors.len() == mesh.geometry.vertices.len() =>
-                {
-                    for (point, color) in screen_space_points.zip(mesh.geometry.colors) {
-                        callback(DrawPrimitive::ColoredPoint(point.xy(), *color));
-                    }
-                }
-
                 RenderMode::Points => {
-                    for point in screen_space_points {
-                        callback(DrawPrimitive::ColoredPoint(point.xy(), mesh.color));
+                    let screen_space_points = mesh
+                        .geometry
+                        .vertices
+                        .iter()
+                        .filter_map(|v| self.transform_point(v, transform_matrix));
+
+                    if mesh.geometry.colors.len() == mesh.geometry.vertices.len() {
+                        for (point, color) in screen_space_points.zip(mesh.geometry.colors) {
+                            callback(DrawPrimitive::ColoredPoint(point.xy(), *color));
+                        }
+                    } else {
+                        for point in screen_space_points {
+                            callback(DrawPrimitive::ColoredPoint(point.xy(), mesh.color));
+                        }
                     }
                 }
 
                 RenderMode::Lines if !mesh.geometry.lines.is_empty() => {
                     for line in mesh.geometry.lines {
-                        let p1 = self
-                            .transform_point(&mesh.geometry.vertices[line[0]], transform_matrix);
-                        let p2 = self
-                            .transform_point(&mesh.geometry.vertices[line[1]], transform_matrix);
-
-                        if let (Some(p1), Some(p2)) = (p1, p2) {
+                        if let Some([p1, p2]) =
+                            self.transform_points(line, mesh.geometry.vertices, transform_matrix)
+                        {
                             callback(DrawPrimitive::Line([p1.xy(), p2.xy()], mesh.color));
                         }
                     }
@@ -103,14 +114,9 @@ impl K3dengine {
 
                 RenderMode::Lines if !mesh.geometry.faces.is_empty() => {
                     for face in mesh.geometry.faces {
-                        let p1 = self
-                            .transform_point(&mesh.geometry.vertices[face[0]], transform_matrix);
-                        let p2 = self
-                            .transform_point(&mesh.geometry.vertices[face[1]], transform_matrix);
-                        let p3 = self
-                            .transform_point(&mesh.geometry.vertices[face[2]], transform_matrix);
-
-                        if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
+                        if let Some([p1, p2, p3]) =
+                            self.transform_points(face, mesh.geometry.vertices, transform_matrix)
+                        {
                             callback(DrawPrimitive::Line([p1.xy(), p2.xy()], mesh.color));
                             callback(DrawPrimitive::Line([p2.xy(), p3.xy()], mesh.color));
                             callback(DrawPrimitive::Line([p3.xy(), p1.xy()], mesh.color));
@@ -131,14 +137,9 @@ impl K3dengine {
                             continue;
                         }
 
-                        let p1 = self
-                            .transform_point(&mesh.geometry.vertices[face[0]], transform_matrix);
-                        let p2 = self
-                            .transform_point(&mesh.geometry.vertices[face[1]], transform_matrix);
-                        let p3 = self
-                            .transform_point(&mesh.geometry.vertices[face[2]], transform_matrix);
-
-                        if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
+                        if let Some([p1, p2, p3]) =
+                            self.transform_points(face, mesh.geometry.vertices, transform_matrix)
+                        {
                             let color_as_float = Vector3::new(
                                 mesh.color.r() as f32 / 32.0,
                                 mesh.color.g() as f32 / 64.0,
@@ -175,20 +176,11 @@ impl K3dengine {
                 RenderMode::Solid => {
                     if mesh.geometry.normals.is_empty() {
                         for face in mesh.geometry.faces.iter() {
-                            let p1 = self.transform_point(
-                                &mesh.geometry.vertices[face[0]],
+                            if let Some([p1, p2, p3]) = self.transform_points(
+                                face,
+                                mesh.geometry.vertices,
                                 transform_matrix,
-                            );
-                            let p2 = self.transform_point(
-                                &mesh.geometry.vertices[face[1]],
-                                transform_matrix,
-                            );
-                            let p3 = self.transform_point(
-                                &mesh.geometry.vertices[face[2]],
-                                transform_matrix,
-                            );
-
-                            if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
+                            ) {
                                 callback(DrawPrimitive::ColoredTriangle(
                                     [p1.xy(), p2.xy(), p3.xy()],
                                     mesh.color,
@@ -207,20 +199,11 @@ impl K3dengine {
                                 continue;
                             }
 
-                            let p1 = self.transform_point(
-                                &mesh.geometry.vertices[face[0]],
+                            if let Some([p1, p2, p3]) = self.transform_points(
+                                face,
+                                mesh.geometry.vertices,
                                 transform_matrix,
-                            );
-                            let p2 = self.transform_point(
-                                &mesh.geometry.vertices[face[1]],
-                                transform_matrix,
-                            );
-                            let p3 = self.transform_point(
-                                &mesh.geometry.vertices[face[2]],
-                                transform_matrix,
-                            );
-
-                            if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
+                            ) {
                                 callback(DrawPrimitive::ColoredTriangle(
                                     [p1.xy(), p2.xy(), p3.xy()],
                                     mesh.color,
