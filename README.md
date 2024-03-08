@@ -1,5 +1,6 @@
 # Embedded-gfx
 <a href="https://crates.io/crates/embedded-gfx"><img alt="crates.io" src="https://img.shields.io/crates/v/embedded-gfx"></a>
+![workflow](https://github.com/Kezii/embedded-gfx/actions/workflows/rust.yml/badge.svg)
 
 This is an opengl-like library to draw 3D graphics in an embedded system, built around embedded-graphics.
 
