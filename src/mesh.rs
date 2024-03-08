@@ -11,11 +11,11 @@ pub enum RenderMode {
 }
 #[derive(Debug, Default)]
 pub struct Geometry<'a> {
-    pub vertices: &'a [(f32, f32, f32)],
-    pub faces: &'a [(usize, usize, usize)],
+    pub vertices: &'a [[f32; 3]],
+    pub faces: &'a [[usize; 3]],
     pub colors: &'a [Rgb565],
-    pub lines: &'a [(usize, usize)],
-    pub normals: &'a [(f32, f32, f32)],
+    pub lines: &'a [[usize; 2]],
+    pub normals: &'a [[f32; 3]],
 }
 
 impl<'a> Geometry<'a> {
@@ -26,9 +26,9 @@ impl<'a> Geometry<'a> {
         }
 
         for face in self.faces {
-            if face.0 >= self.vertices.len()
-                || face.1 >= self.vertices.len()
-                || face.2 >= self.vertices.len()
+            if face[0] >= self.vertices.len()
+                || face[1] >= self.vertices.len()
+                || face[2] >= self.vertices.len()
             {
                 error!("Face vertices are out of bounds");
                 return false;
@@ -36,7 +36,7 @@ impl<'a> Geometry<'a> {
         }
 
         for line in self.lines {
-            if line.0 >= self.vertices.len() || line.1 >= self.vertices.len() {
+            if line[0] >= self.vertices.len() || line[1] >= self.vertices.len() {
                 error!("Line vertices are out of bounds");
                 return false;
             }
@@ -50,10 +50,10 @@ impl<'a> Geometry<'a> {
         true
     }
 
-    pub fn lines_from_faces(faces: &[(usize, usize, usize)]) -> Vec<(usize, usize)> {
+    pub fn lines_from_faces(faces: &[[usize; 3]]) -> Vec<(usize, usize)> {
         let mut lines = Vec::new();
         for face in faces {
-            for line in &[(face.0, face.1), (face.1, face.2), (face.2, face.0)] {
+            for line in &[(face[0], face[1]), (face[1], face[2]), (face[2], face[0])] {
                 let (a, b) = if line.0 < line.1 {
                     (line.0, line.1)
                 } else {

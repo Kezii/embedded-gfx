@@ -7,6 +7,12 @@ pub struct PerformanceCounter {
     only_fps: bool,
 }
 
+impl Default for PerformanceCounter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerformanceCounter {
     pub fn new() -> Self {
         Self {

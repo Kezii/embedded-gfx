@@ -9,8 +9,6 @@ use nalgebra::Matrix4;
 use nalgebra::Perspective3;
 use nalgebra::Point2;
 use nalgebra::Point3;
-use nalgebra::Similarity3;
-use nalgebra::UnitQuaternion;
 use nalgebra::Vector3;
 
 pub mod draw;
@@ -121,12 +119,8 @@ impl K3dengine {
         }
     }
 
-    fn transform_point(
-        &self,
-        point: &(f32, f32, f32),
-        model_matrix: Matrix4<f32>,
-    ) -> Option<Point3<i32>> {
-        let point = nalgebra::Vector4::new(point.0, point.1, point.2, 1.0);
+    fn transform_point(&self, point: &[f32; 3], model_matrix: Matrix4<f32>) -> Option<Point3<i32>> {
+        let point = nalgebra::Vector4::new(point[0], point[1], point[2], 1.0);
         let point = model_matrix * point;
 
         if point.w < 0.0 {
@@ -179,10 +173,10 @@ impl K3dengine {
 
                 RenderMode::Lines if !mesh.geometry.lines.is_empty() => {
                     for line in mesh.geometry.lines {
-                        let p1 =
-                            self.transform_point(&mesh.geometry.vertices[line.0], transform_matrix);
-                        let p2 =
-                            self.transform_point(&mesh.geometry.vertices[line.1], transform_matrix);
+                        let p1 = self
+                            .transform_point(&mesh.geometry.vertices[line[0]], transform_matrix);
+                        let p2 = self
+                            .transform_point(&mesh.geometry.vertices[line[1]], transform_matrix);
 
                         if let (Some(p1), Some(p2)) = (p1, p2) {
                             callback(DrawPrimitive::Line(p1.xy(), p2.xy(), mesh.color));
@@ -192,12 +186,12 @@ impl K3dengine {
 
                 RenderMode::Lines if !mesh.geometry.faces.is_empty() => {
                     for face in mesh.geometry.faces {
-                        let p1 =
-                            self.transform_point(&mesh.geometry.vertices[face.0], transform_matrix);
-                        let p2 =
-                            self.transform_point(&mesh.geometry.vertices[face.1], transform_matrix);
-                        let p3 =
-                            self.transform_point(&mesh.geometry.vertices[face.2], transform_matrix);
+                        let p1 = self
+                            .transform_point(&mesh.geometry.vertices[face[0]], transform_matrix);
+                        let p2 = self
+                            .transform_point(&mesh.geometry.vertices[face[1]], transform_matrix);
+                        let p3 = self
+                            .transform_point(&mesh.geometry.vertices[face[2]], transform_matrix);
 
                         if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
                             callback(DrawPrimitive::Line(p1.xy(), p2.xy(), mesh.color));
@@ -212,7 +206,7 @@ impl K3dengine {
                 RenderMode::SolidLightDir(direction) => {
                     for (face, normal) in mesh.geometry.faces.iter().zip(mesh.geometry.normals) {
                         //Backface culling
-                        let normal = Vector3::new(normal.0, normal.1, normal.2);
+                        let normal = Vector3::new(normal[0], normal[1], normal[2]);
 
                         let transformed_normal = mesh.model_matrix.transform_vector(&normal);
 
@@ -220,12 +214,12 @@ impl K3dengine {
                             continue;
                         }
 
-                        let p1 =
-                            self.transform_point(&mesh.geometry.vertices[face.0], transform_matrix);
-                        let p2 =
-                            self.transform_point(&mesh.geometry.vertices[face.1], transform_matrix);
-                        let p3 =
-                            self.transform_point(&mesh.geometry.vertices[face.2], transform_matrix);
+                        let p1 = self
+                            .transform_point(&mesh.geometry.vertices[face[0]], transform_matrix);
+                        let p2 = self
+                            .transform_point(&mesh.geometry.vertices[face[1]], transform_matrix);
+                        let p3 = self
+                            .transform_point(&mesh.geometry.vertices[face[2]], transform_matrix);
 
                         if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
                             let color_as_float = Vector3::new(
@@ -266,12 +260,18 @@ impl K3dengine {
                 RenderMode::Solid => {
                     if mesh.geometry.normals.is_empty() {
                         for face in mesh.geometry.faces.iter() {
-                            let p1 = self
-                                .transform_point(&mesh.geometry.vertices[face.0], transform_matrix);
-                            let p2 = self
-                                .transform_point(&mesh.geometry.vertices[face.1], transform_matrix);
-                            let p3 = self
-                                .transform_point(&mesh.geometry.vertices[face.2], transform_matrix);
+                            let p1 = self.transform_point(
+                                &mesh.geometry.vertices[face[0]],
+                                transform_matrix,
+                            );
+                            let p2 = self.transform_point(
+                                &mesh.geometry.vertices[face[1]],
+                                transform_matrix,
+                            );
+                            let p3 = self.transform_point(
+                                &mesh.geometry.vertices[face[2]],
+                                transform_matrix,
+                            );
 
                             if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
                                 callback(DrawPrimitive::ColoredTriangle(
@@ -286,7 +286,7 @@ impl K3dengine {
                         for (face, normal) in mesh.geometry.faces.iter().zip(mesh.geometry.normals)
                         {
                             //Backface culling
-                            let normal = Vector3::new(normal.0, normal.1, normal.2);
+                            let normal = Vector3::new(normal[0], normal[1], normal[2]);
 
                             let transformed_normal = mesh.model_matrix.transform_vector(&normal);
 
@@ -294,12 +294,18 @@ impl K3dengine {
                                 continue;
                             }
 
-                            let p1 = self
-                                .transform_point(&mesh.geometry.vertices[face.0], transform_matrix);
-                            let p2 = self
-                                .transform_point(&mesh.geometry.vertices[face.1], transform_matrix);
-                            let p3 = self
-                                .transform_point(&mesh.geometry.vertices[face.2], transform_matrix);
+                            let p1 = self.transform_point(
+                                &mesh.geometry.vertices[face[0]],
+                                transform_matrix,
+                            );
+                            let p2 = self.transform_point(
+                                &mesh.geometry.vertices[face[1]],
+                                transform_matrix,
+                            );
+                            let p3 = self.transform_point(
+                                &mesh.geometry.vertices[face[2]],
+                                transform_matrix,
+                            );
 
                             if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
                                 callback(DrawPrimitive::ColoredTriangle(
