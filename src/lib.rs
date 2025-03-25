@@ -155,9 +155,9 @@ impl K3dengine {
                             final_color += color_as_float * intensity + color_as_float * 0.4;
 
                             let final_color = Vector3::new(
-                                final_color.x.min(1.0).max(0.0),
-                                final_color.y.min(1.0).max(0.0),
-                                final_color.z.min(1.0).max(0.0),
+                                final_color.x.clamp(0.0, 1.0),
+                                final_color.y.clamp(0.0, 1.0),
+                                final_color.z.clamp(0.0, 1.0),
                             );
 
                             let color = Rgb565::new(

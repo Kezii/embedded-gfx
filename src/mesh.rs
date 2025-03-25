@@ -18,7 +18,7 @@ pub struct Geometry<'a> {
     pub normals: &'a [[f32; 3]],
 }
 
-impl<'a> Geometry<'a> {
+impl Geometry<'_> {
     fn check_validity(&self) -> bool {
         if self.vertices.is_empty() {
             error!("Vertices are empty");
@@ -78,7 +78,7 @@ pub struct K3dMesh<'a> {
     pub geometry: Geometry<'a>,
 }
 
-impl<'a> K3dMesh<'a> {
+impl K3dMesh<'_> {
     pub fn new(geometry: Geometry) -> K3dMesh {
         assert!(geometry.check_validity());
         let sim = Similarity3::new(Vector3::new(0.0, 0.0, 0.0), nalgebra::zero(), 1.0);
