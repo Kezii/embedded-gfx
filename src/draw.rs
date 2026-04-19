@@ -1,24 +1,22 @@
 use embedded_graphics_core::draw_target::DrawTarget;
 use embedded_graphics_core::prelude::Point;
 
+use crate::canvas::{DrawError, GFX2DCanvas};
 use crate::DrawPrimitive;
 
 #[inline]
-pub fn draw<D: DrawTarget<Color = embedded_graphics_core::pixelcolor::Rgb565>>(
+pub fn draw<D: GFX2DCanvas<Color = embedded_graphics_core::pixelcolor::Rgb565>>(
     primitive: &DrawPrimitive,
     fb: &mut D,
-) -> Result<(), <D as DrawTarget>::Error> {
+) -> Result<(), DrawError> {
     match *primitive {
         DrawPrimitive::Line([p1, p2], color) => {
-            fb.draw_iter(
-                line_drawing::Bresenham::new((p1.x, p1.y), (p2.x, p2.y))
-                    .map(|(x, y)| embedded_graphics_core::Pixel(Point::new(x, y), color)),
-            )?;
+            fb.draw_line(Point::new(p1.x, p1.y), Point::new(p2.x, p2.y), color)?;
         }
         DrawPrimitive::ColoredPoint(p, c) => {
             let p = embedded_graphics_core::geometry::Point::new(p.x, p.y);
 
-            fb.draw_iter([embedded_graphics_core::Pixel(p, c)])?;
+            fb.draw_pixel(p, c)?;
         }
         DrawPrimitive::ColoredTriangle(mut vertices, color) => {
             //sort vertices by y
@@ -52,13 +50,13 @@ pub fn draw<D: DrawTarget<Color = embedded_graphics_core::pixelcolor::Rgb565>>(
     Ok(())
 }
 
-fn fill_bottom_flat_triangle<D: DrawTarget<Color = embedded_graphics_core::pixelcolor::Rgb565>>(
+fn fill_bottom_flat_triangle<D: GFX2DCanvas<Color = embedded_graphics_core::pixelcolor::Rgb565>>(
     p1: Point,
     p2: Point,
     p3: Point,
     color: embedded_graphics_core::pixelcolor::Rgb565,
     fb: &mut D,
-) -> Result<(), <D as DrawTarget>::Error> {
+) -> Result<(), DrawError> {
     let invslope1 = (p2.x - p1.x) as f32 / (p2.y - p1.y) as f32;
     let invslope2 = (p3.x - p1.x) as f32 / (p3.y - p1.y) as f32;
 
@@ -66,11 +64,10 @@ fn fill_bottom_flat_triangle<D: DrawTarget<Color = embedded_graphics_core::pixel
     let mut curx2 = p1.x as f32;
 
     for scanline_y in p1.y..=p2.y {
-        draw_horizontal_line(
+        fb.draw_horizontal_line(
             Point::new(curx1 as i32, scanline_y),
             Point::new(curx2 as i32, scanline_y),
             color,
-            fb,
         )?;
 
         curx1 += invslope1;
@@ -80,13 +77,13 @@ fn fill_bottom_flat_triangle<D: DrawTarget<Color = embedded_graphics_core::pixel
     Ok(())
 }
 
-fn fill_top_flat_triangle<D: DrawTarget<Color = embedded_graphics_core::pixelcolor::Rgb565>>(
+fn fill_top_flat_triangle<D: GFX2DCanvas<Color = embedded_graphics_core::pixelcolor::Rgb565>>(
     p1: Point,
     p2: Point,
     p3: Point,
     color: embedded_graphics_core::pixelcolor::Rgb565,
     fb: &mut D,
-) -> Result<(), <D as DrawTarget>::Error> {
+) -> Result<(), DrawError> {
     let invslope1 = (p3.x - p1.x) as f32 / (p3.y - p1.y) as f32;
     let invslope2 = (p3.x - p2.x) as f32 / (p3.y - p2.y) as f32;
 
@@ -94,31 +91,14 @@ fn fill_top_flat_triangle<D: DrawTarget<Color = embedded_graphics_core::pixelcol
     let mut curx2 = p3.x as f32;
 
     for scanline_y in (p1.y..=p3.y).rev() {
-        draw_horizontal_line(
+        fb.draw_horizontal_line(
             Point::new(curx1 as i32, scanline_y),
             Point::new(curx2 as i32, scanline_y),
             color,
-            fb,
         )?;
 
         curx1 -= invslope1;
         curx2 -= invslope2;
-    }
-
-    Ok(())
-}
-
-fn draw_horizontal_line<D: DrawTarget<Color = embedded_graphics_core::pixelcolor::Rgb565>>(
-    p1: Point,
-    p2: Point,
-    color: embedded_graphics_core::pixelcolor::Rgb565,
-    fb: &mut D,
-) -> Result<(), <D as DrawTarget>::Error> {
-    let start = p1.x.min(p2.x);
-    let end = p1.x.max(p2.x);
-
-    for x in start..=end {
-        fb.draw_iter([embedded_graphics_core::Pixel(Point::new(x, p1.y), color)])?;
     }
 
     Ok(())
