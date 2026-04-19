@@ -12,7 +12,7 @@ pub trait RawFramebuffer {
     fn set_pixel_unchecked(&mut self, point: Point, color: Rgb565);
     fn size(&self) -> embedded_graphics_core::geometry::Size;
 
-    fn is_in_bounds(&self, point: Point) -> bool {
+    fn is_in_bounds(&self, point: &Point) -> bool {
         point.x >= 0
             && point.x < self.size().width as i32
             && point.y >= 0
@@ -42,7 +42,7 @@ impl<const W: usize, const H: usize> GFX2DCanvas for StackFramebuffer<W, H, Rgb5
 
 impl<const W: usize, const H: usize> RawFramebuffer for StackFramebuffer<W, H, Rgb565> {
     fn set_pixel(&mut self, point: Point, color: Rgb565) -> bool {
-        if self.is_in_bounds(point) {
+        if self.is_in_bounds(&point) {
             self.framebuffer[point.y as usize][point.x as usize] = color;
             true
         } else {
@@ -95,7 +95,7 @@ impl<const W: usize, const H: usize> GFX2DCanvas for DmaReadyFramebuffer<W, H> {
 
 impl<const W: usize, const H: usize> RawFramebuffer for DmaReadyFramebuffer<W, H> {
     fn set_pixel(&mut self, point: Point, color: Rgb565) -> bool {
-        if self.is_in_bounds(point) {
+        if self.is_in_bounds(&point) {
             self.raw_set_pixel(point, color);
             true
         } else {

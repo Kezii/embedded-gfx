@@ -24,7 +24,7 @@ pub trait GFX2DCanvas: RawFramebuffer {
 
     fn draw_line(&mut self, p1: Point, p2: Point, color: Rgb565) -> Result<(), DrawError> {
         // fast path, unchecked
-        if self.is_in_bounds(p1) && self.is_in_bounds(p2) {
+        if self.is_in_bounds(&p1) && self.is_in_bounds(&p2) {
             line_drawing::Bresenham::new((p1.x, p1.y), (p2.x, p2.y))
                 .for_each(|(x, y)| self.set_pixel_unchecked(Point::new(x, y), color));
 
