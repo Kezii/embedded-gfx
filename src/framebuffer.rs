@@ -10,13 +10,10 @@ use crate::canvas::GFX2DCanvas;
 pub trait RawFramebuffer {
     fn set_pixel(&mut self, point: Point, color: Rgb565) -> bool;
     fn set_pixel_unchecked(&mut self, point: Point, color: Rgb565);
-    fn size(&self) -> embedded_graphics_core::geometry::Size;
+    fn limit(&self) -> Point;
 
     fn is_in_bounds(&self, point: &Point) -> bool {
-        point.x >= 0
-            && point.x < self.size().width as i32
-            && point.y >= 0
-            && point.y < self.size().height as i32
+        point.x >= 0 && point.x < self.limit().x && point.y >= 0 && point.y < self.limit().y
     }
 
     //fn get_continuous(&self) -> impl IntoIterator<Item = Rgb565>;
@@ -54,8 +51,8 @@ impl<const W: usize, const H: usize> RawFramebuffer for StackFramebuffer<W, H, R
         self.framebuffer[point.y as usize][point.x as usize] = color;
     }
 
-    fn size(&self) -> embedded_graphics_core::geometry::Size {
-        embedded_graphics_core::geometry::Size::new(W as u32, H as u32)
+    fn limit(&self) -> Point {
+        Point::new(W as i32, H as i32)
     }
 }
 
@@ -107,8 +104,8 @@ impl<const W: usize, const H: usize> RawFramebuffer for DmaReadyFramebuffer<W, H
         self.raw_set_pixel(point, color);
     }
 
-    fn size(&self) -> embedded_graphics_core::geometry::Size {
-        embedded_graphics_core::geometry::Size::new(W as u32, H as u32)
+    fn limit(&self) -> Point {
+        Point::new(W as i32, H as i32)
     }
 }
 

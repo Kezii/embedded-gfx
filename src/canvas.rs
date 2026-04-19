@@ -49,15 +49,15 @@ pub trait GFX2DCanvas: RawFramebuffer {
         p2: Point,
         color: Rgb565,
     ) -> Result<(), DrawError> {
-        if p1.y < 0 || p1.y >= self.size().height as i32 || p1.y != p2.y {
+        if p1.y < 0 || p1.y >= self.limit().y as i32 || p1.y != p2.y {
             return Err(DrawError::OutOfBounds);
         }
 
         let start = p1.x.min(p2.x);
         let end = p1.x.max(p2.x);
 
-        let start = start.max(0).min(self.size().width as i32 - 1);
-        let end = end.max(0).min(self.size().width as i32 - 1);
+        let start = start.max(0).min(self.limit().x as i32 - 1);
+        let end = end.max(0).min(self.limit().x as i32 - 1);
 
         for x in start..=end {
             self.set_pixel_unchecked(Point::new(x, p1.y), color);
