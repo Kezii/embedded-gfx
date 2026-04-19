@@ -2,7 +2,7 @@ use embedded_graphics_core::pixelcolor::{Rgb565, WebColors};
 use log::error;
 use nalgebra::{Point3, Similarity3, UnitQuaternion, Vector3};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum RenderMode {
     Points,
     Lines,
@@ -80,7 +80,7 @@ pub struct K3dMesh<'a> {
 
 impl K3dMesh<'_> {
     pub fn new(geometry: Geometry) -> K3dMesh {
-        assert!(geometry.check_validity());
+        debug_assert!(geometry.check_validity());
         let sim = Similarity3::new(Vector3::new(0.0, 0.0, 0.0), nalgebra::zero(), 1.0);
         K3dMesh {
             model_matrix: sim.to_homogeneous(),

@@ -4,9 +4,29 @@ use embedded_graphics_core::{
     pixelcolor::{IntoStorage, Rgb565},
 };
 
+pub trait RawFramebuffer {
+    fn set_pixel(&mut self, point: Point, color: Rgb565) -> bool;
+    fn size(&self) -> embedded_graphics_core::geometry::Size;
+}
+
 pub struct DmaReadyFramebuffer<const W: usize, const H: usize> {
     pub framebuffer: *mut [[u16; W]; H], // tfw no generic_const_exprs
     big_endian: bool,
+}
+
+impl<const W: usize, const H: usize> RawFramebuffer for DmaReadyFramebuffer<W, H> {
+    fn set_pixel(&mut self, point: Point, color: Rgb565) -> bool {
+        if point.x >= 0 && point.x < W as i32 && point.y >= 0 && point.y < H as i32 {
+            self.set_pixel(point, color);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn size(&self) -> embedded_graphics_core::geometry::Size {
+        embedded_graphics_core::geometry::Size::new(W as u32, H as u32)
+    }
 }
 
 impl<const W: usize, const H: usize> DmaReadyFramebuffer<W, H> {
@@ -24,16 +44,14 @@ impl<const W: usize, const H: usize> DmaReadyFramebuffer<W, H> {
         }
     }
 
-    pub fn set_pixel(&mut self, point: Point, color: Rgb565) {
-        if point.x >= 0 && point.x < W as i32 && point.y >= 0 && point.y < H as i32 {
-            unsafe {
-                let framebuffer = &mut *self.framebuffer;
+    fn set_pixel(&mut self, point: Point, color: Rgb565) {
+        unsafe {
+            let framebuffer = &mut *self.framebuffer;
 
-                if self.big_endian {
-                    framebuffer[point.y as usize][point.x as usize] = color.into_storage().to_be();
-                } else {
-                    framebuffer[point.y as usize][point.x as usize] = color.into_storage();
-                }
+            if self.big_endian {
+                framebuffer[point.y as usize][point.x as usize] = color.into_storage().to_be();
+            } else {
+                framebuffer[point.y as usize][point.x as usize] = color.into_storage();
             }
         }
     }

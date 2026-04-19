@@ -9,6 +9,7 @@ use nalgebra::Point3;
 use nalgebra::Vector3;
 
 pub mod camera;
+pub mod canvas;
 pub mod draw;
 pub mod framebuffer;
 pub mod mesh;
@@ -73,7 +74,7 @@ impl K3dengine {
 
     pub fn render<'a, MS, F>(&self, meshes: MS, mut callback: F)
     where
-        MS: IntoIterator<Item = &'a K3dMesh<'a>>,
+        MS: IntoIterator<Item = K3dMesh<'a>>,
         F: FnMut(DrawPrimitive),
     {
         for mesh in meshes {
