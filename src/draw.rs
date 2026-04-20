@@ -22,12 +22,29 @@ pub fn draw<D: GFX2DCanvas<Color = embedded_graphics_core::pixelcolor::Rgb565>>(
             //sort vertices by y
             vertices.sort_by(|a, b| a.y.cmp(&b.y));
 
-            let [p1, p2, p3] = vertices
-                .iter()
-                .map(|p| embedded_graphics_core::geometry::Point::new(p.x, p.y))
-                .collect::<Vec<embedded_graphics_core::geometry::Point>>()
-                .try_into()
-                .unwrap();
+            let p1 = Point::new(vertices[0].x, vertices[0].y);
+            let p2 = Point::new(vertices[1].x, vertices[1].y);
+            let p3 = Point::new(vertices[2].x, vertices[2].y);
+
+            if p1.x < 0 && p2.x < 0 && p3.x < 0 {
+                return Ok(());
+            }
+            if p1.x >= fb.limit().x as i32
+                && p2.x >= fb.limit().x as i32
+                && p3.x >= fb.limit().x as i32
+            {
+                return Ok(());
+            }
+            if p1.y < 0 && p2.y < 0 && p3.y < 0 {
+                return Ok(());
+            }
+
+            if p1.y >= fb.limit().y as i32
+                && p2.y >= fb.limit().y as i32
+                && p3.y >= fb.limit().y as i32
+            {
+                return Ok(());
+            }
 
             if p2.y == p3.y {
                 fill_bottom_flat_triangle(p1, p2, p3, color, fb)?;
