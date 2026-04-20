@@ -23,6 +23,19 @@ pub trait GFX2DCanvas: RawFramebuffer {
     }
 
     fn draw_line(&mut self, p1: Point, p2: Point, color: Rgb565) -> Result<(), DrawError> {
+        if p1.x < 0 && p2.x < 0 {
+            return Ok(());
+        }
+        if p1.x >= self.limit().x as i32 && p2.x >= self.limit().x as i32 {
+            return Ok(());
+        }
+        if p1.y < 0 && p2.y < 0 {
+            return Ok(());
+        }
+        if p1.y >= self.limit().y as i32 && p2.y >= self.limit().y as i32 {
+            return Ok(());
+        }
+
         // fast path, unchecked
         if self.is_in_bounds(&p1) && self.is_in_bounds(&p2) {
             line_drawing::Bresenham::new((p1.x, p1.y), (p2.x, p2.y))

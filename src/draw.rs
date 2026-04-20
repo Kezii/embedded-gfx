@@ -68,7 +68,8 @@ fn fill_bottom_flat_triangle<D: GFX2DCanvas<Color = embedded_graphics_core::pixe
             Point::new(curx1 as i32, scanline_y),
             Point::new(curx2 as i32, scanline_y),
             color,
-        )?;
+        )
+        .ok();
 
         curx1 += invslope1;
         curx2 += invslope2;
@@ -95,7 +96,8 @@ fn fill_top_flat_triangle<D: GFX2DCanvas<Color = embedded_graphics_core::pixelco
             Point::new(curx1 as i32, scanline_y),
             Point::new(curx2 as i32, scanline_y),
             color,
-        )?;
+        )
+        .ok();
 
         curx1 -= invslope1;
         curx2 -= invslope2;
