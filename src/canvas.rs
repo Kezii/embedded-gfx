@@ -2,7 +2,6 @@ use embedded_graphics_core::{
     pixelcolor::Rgb565,
     prelude::{PixelColor, Point},
 };
-use log::info;
 
 use crate::framebuffer::RawFramebuffer;
 
@@ -26,13 +25,13 @@ pub trait GFX2DCanvas: RawFramebuffer {
         if p1.x < 0 && p2.x < 0 {
             return Ok(());
         }
-        if p1.x >= self.limit().x as i32 && p2.x >= self.limit().x as i32 {
+        if p1.x >= self.limit().x && p2.x >= self.limit().x {
             return Ok(());
         }
         if p1.y < 0 && p2.y < 0 {
             return Ok(());
         }
-        if p1.y >= self.limit().y as i32 && p2.y >= self.limit().y as i32 {
+        if p1.y >= self.limit().y && p2.y >= self.limit().y {
             return Ok(());
         }
 
@@ -62,15 +61,15 @@ pub trait GFX2DCanvas: RawFramebuffer {
         p2: Point,
         color: Rgb565,
     ) -> Result<(), DrawError> {
-        if p1.y < 0 || p1.y >= self.limit().y as i32 || p1.y != p2.y {
+        if p1.y < 0 || p1.y >= self.limit().y || p1.y != p2.y {
             return Err(DrawError::OutOfBounds);
         }
 
         let start = p1.x.min(p2.x);
         let end = p1.x.max(p2.x);
 
-        let start = start.max(0).min(self.limit().x as i32 - 1);
-        let end = end.max(0).min(self.limit().x as i32 - 1);
+        let start = start.max(0).min(self.limit().x - 1);
+        let end = end.max(0).min(self.limit().x - 1);
 
         for x in start..=end {
             self.set_pixel_unchecked(Point::new(x, p1.y), color);
