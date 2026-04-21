@@ -48,7 +48,7 @@ pub trait GFX2DCanvas: RawFramebuffer {
             .filter(|e| !e)
             .last();
 
-        if let Some(err) = errs {
+        if let Some(_) = errs {
             Err(DrawError::OutOfBounds)
         } else {
             Ok(())

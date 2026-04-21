@@ -1,4 +1,3 @@
-use embedded_graphics_core::draw_target::DrawTarget;
 use embedded_graphics_core::prelude::Point;
 
 use crate::canvas::{DrawError, GFX2DCanvas};
